@@ -1,105 +1,82 @@
-import { useState, useMemo } from "react"
-import {
-  LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer,
-  BarChart, Bar
-} from "recharts"
+import { useMemo, useState } from "react"
+
+const INVESTIGATION_TYPES = [
+  "recent_cloudtrail_events",
+  "failed_console_logins",
+  "suspicious_iam_activity",
+  "ec2_instance_creation_activity",
+  "ec2_security_group_changes",
+  "root_account_activity",
+  "new_access_keys_created",
+  "failed_api_calls",
+]
 
 const API_ENDPOINT = import.meta.env.VITE_API_ENDPOINT
 
-const REGIONS = [
-  "us-east-1","us-east-2","us-west-1","us-west-2",
-  "eu-west-1","eu-central-1",
-  "ap-southeast-1","ap-southeast-2","ap-northeast-1"
-]
+type InvestigationDetail = Record<string, string>
 
-const TIME_RANGES = [
-  { label: "Last 1 Hour", value: "1" },
-  { label: "Last 6 Hours", value: "6" },
-  { label: "Last 12 Hours", value: "12" },
-  { label: "Last 24 Hours", value: "24" },
-  { label: "Last 7 Days", value: "168" },
-]
+type InvestigationResponse = {
+  status: "success" | "error"
+  investigation_type: string
+  summary: string
+  details: InvestigationDetail[]
+  statistics: {
+    total_events: number
+    unique_ips: number
+  }
+  recommended_actions: string[]
+}
+
+function toLabel(key: string) {
+  const normalized = key.replace(/_/g, " ")
+  return normalized.charAt(0).toUpperCase() + normalized.slice(1)
+}
 
 export default function ThreatHuntingDashboard() {
-  const [query, setQuery] = useState("")
-  const [region, setRegion] = useState("us-east-1")
-  const [timeRange, setTimeRange] = useState("24")
+  const [investigationType, setInvestigationType] = useState("recent_cloudtrail_events")
+  const [days, setDays] = useState("7")
+  const [ipAddress, setIpAddress] = useState("")
+  const [username, setUsername] = useState("")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
-  const [response, setResponse] = useState<any>(null)
+  const [response, setResponse] = useState<InvestigationResponse | null>(null)
 
-  // Severity
-  function getSeverity() {
-    const total = response?.statistics?.total_events || 0
-    if (total > 50) return { label: "CRITICAL", color: "#ef4444" }
-    if (total > 20) return { label: "HIGH", color: "#f97316" }
-    if (total > 5) return { label: "MEDIUM", color: "#eab308" }
-    return { label: "LOW", color: "#22c55e" }
-  }
-
-  // Suspicious IPs
-  const suspiciousIPs = useMemo(() => {
-    return new Set(
-      (response?.details || [])
-        .filter((d: any) => d.status === "Failed")
-        .map((d: any) => d.ip)
-    )
+  const columns = useMemo(() => {
+    if (!response?.details?.length) return []
+    return Object.keys(response.details[0])
   }, [response])
 
-  // Timeline
-  const timelineData = useMemo(() => {
-    if (!response?.details) return []
-
-    const map: any = {}
-
-    response.details.forEach((event: any) => {
-      const time = event.time_dt?.slice(11, 16)
-
-      if (!map[time]) map[time] = { time, count: 0 }
-      map[time].count++
-    })
-
-    return Object.values(map).sort((a: any, b: any) =>
-      a.time.localeCompare(b.time)
-    )
-  }, [response])
-
-  // Distribution
-  const statusData = useMemo(() => {
-    if (!response?.details) return []
-
-    const success = response.details.filter((d: any) => d.status === "Success").length
-    const failed = response.details.filter((d: any) => d.status === "Failed").length
-
-    return [
-      { name: "Success", value: success },
-      { name: "Failed", value: failed }
-    ]
-  }, [response])
-
-  async function runSearch() {
+  async function runInvestigation() {
     setLoading(true)
     setError("")
 
     try {
+      const payload: Record<string, string> = {
+        investigation_type: investigationType,
+        days,
+      }
+
+      if (ipAddress.trim()) payload.ip_address = ipAddress.trim()
+      if (username.trim()) payload.username = username.trim()
+
       const res = await fetch(API_ENDPOINT, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          investigation_type: "recent_cloudtrail_events",
-          days: timeRange,
-          region,
-          query
-        })
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
       })
 
       const data = await res.json()
-      if (!res.ok) throw new Error(data.message || "Request failed")
+
+      if (!res.ok || data.status === "error") {
+        throw new Error(data.summary || data.message || "Investigation request failed.")
+      }
 
       setResponse(data)
-
-    } catch (err: any) {
-      setError(err.message)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Unknown error occurred."
+      setError(message)
       setResponse(null)
     } finally {
       setLoading(false)
@@ -107,144 +84,171 @@ export default function ThreatHuntingDashboard() {
   }
 
   return (
-    <div style={{ background: "#0b0f1a", minHeight: "100vh", color: "#e2e8f0", fontFamily: "Segoe UI" }}>
-
-      {/* HEADER */}
-      <div style={{
-        display: "flex",
-        justifyContent: "space-between",
-        padding: "15px 30px",
-        background: "rgba(15,20,35,0.95)"
-      }}>
-        <div><strong>AWS</strong> Threat Hunting</div>
-
-        <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
-          <span className="pulse" />
-          Live
-        </div>
-      </div>
-
-      {/* SEARCH */}
-      <div style={{ display: "flex", justifyContent: "center", marginTop: "20px" }}>
-        <div style={{ display: "flex", gap: "10px", background: "#111827", padding: "10px", borderRadius: "10px" }}>
-
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search threats..."
-            style={{ background: "transparent", border: "none", color: "white" }}
-          />
-
-          <select value={timeRange} onChange={(e) => setTimeRange(e.target.value)}>
-            {TIME_RANGES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-          </select>
-
-          <select value={region} onChange={(e) => setRegion(e.target.value)}>
-            {REGIONS.map(r => <option key={r}>{r}</option>)}
-          </select>
-
-          <button onClick={runSearch} disabled={loading}>
-            {loading ? <span className="spinner" /> : "⚡ Run Hunt"}
-          </button>
-
-        </div>
-      </div>
-
-      {error && <div style={{ color: "red", textAlign: "center" }}>{error}</div>}
-
-      {/* SEVERITY */}
-      {response && (
-        <div style={{
-          margin: "20px",
-          padding: "15px",
-          borderLeft: `5px solid ${getSeverity().color}`
-        }}>
-          Threat Level: {getSeverity().label}
-        </div>
-      )}
-
-      {/* MAIN */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1.6fr", gap: "20px", padding: "30px" }}>
-
-        {/* LEFT */}
+    <div className="min-h-screen bg-slate-950 text-white p-6">
+      <div className="max-w-7xl mx-auto space-y-6">
         <div>
+          <h1 className="text-4xl font-bold">AI Threat Hunting Dashboard</h1>
+          <p className="text-slate-400 mt-2">
+            Investigate AWS activity through your threat hunting API.
+          </p>
+        </div>
 
-          <Card title="Summary">
-            {response?.summary}
-          </Card>
-
-          <Card title="Recommended Actions">
-            {(response?.recommended_actions || []).map((a: string) => <div key={a}>{a}</div>)}
-          </Card>
-
-          {suspiciousIPs.size > 0 && (
-            <Card title="Suspicious IPs">
-              {[...suspiciousIPs].map(ip => (
-                <span key={ip} style={{ color: "#fca5a5", marginRight: "5px" }}>{ip}</span>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 bg-slate-900 p-6 rounded-3xl border border-slate-800">
+          <div>
+            <label className="block text-sm text-slate-400 mb-2">Investigation Type</label>
+            <select
+              value={investigationType}
+              onChange={(e) => setInvestigationType(e.target.value)}
+              className="w-full rounded-2xl bg-slate-800 border border-slate-700 px-4 py-3"
+            >
+              {INVESTIGATION_TYPES.map((type) => (
+                <option key={type} value={type}>
+                  {type}
+                </option>
               ))}
-            </Card>
-          )}
+            </select>
+          </div>
 
+          <div>
+            <label className="block text-sm text-slate-400 mb-2">Days</label>
+            <input
+              type="number"
+              min="1"
+              value={days}
+              onChange={(e) => setDays(e.target.value)}
+              className="w-full rounded-2xl bg-slate-800 border border-slate-700 px-4 py-3"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm text-slate-400 mb-2">IP Address</label>
+            <input
+              type="text"
+              value={ipAddress}
+              onChange={(e) => setIpAddress(e.target.value)}
+              placeholder="45.85.145.66"
+              className="w-full rounded-2xl bg-slate-800 border border-slate-700 px-4 py-3"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm text-slate-400 mb-2">Username</label>
+            <input
+              type="text"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              placeholder="admin"
+              className="w-full rounded-2xl bg-slate-800 border border-slate-700 px-4 py-3"
+            />
+          </div>
         </div>
 
-        {/* RIGHT */}
-        <div>
+        <div className="flex items-center justify-between gap-4">
+          <div className="text-sm text-slate-500 break-all">
+            Update <code className="bg-slate-900 px-2 py-1 rounded">API_ENDPOINT</code> with your real API Gateway invoke URL.
+          </div>
 
-          <Card title="Attack Timeline">
-            <ResponsiveContainer width="100%" height={200}>
-              <LineChart data={timelineData}>
-                <XAxis dataKey="time" stroke="#94a3b8" />
-                <YAxis stroke="#94a3b8" />
-                <Tooltip />
-                <Line dataKey="count" stroke="#6366f1" />
-              </LineChart>
-            </ResponsiveContainer>
-          </Card>
+          <button
+            onClick={runInvestigation}
+            disabled={loading}
+            className="px-6 py-3 rounded-2xl bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed font-semibold shadow-lg shadow-blue-900/30 transition"
+          >
+            {loading ? "Running..." : "Run Investigation"}
+          </button>
+        </div>
 
-          <Card title="Event Distribution">
-            <ResponsiveContainer width="100%" height={200}>
-              <BarChart data={statusData}>
-                <XAxis dataKey="name" stroke="#94a3b8" />
-                <YAxis stroke="#94a3b8" />
-                <Tooltip />
-                <Bar dataKey="value" fill="#06b6d4" />
-              </BarChart>
-            </ResponsiveContainer>
-          </Card>
+        {error ? (
+          <div className="bg-red-950/50 border border-red-800 text-red-200 rounded-3xl p-4">
+            {error}
+          </div>
+        ) : null}
 
-          <Card title="Event Logs">
-            <table style={{ width: "100%" }}>
-              <tbody>
-                {(response?.details || []).map((row: any, i: number) => (
-                  <tr key={i}>
-                    <td>{row.time_dt}</td>
-                    <td>{row.operation}</td>
-                    <td style={{ color: suspiciousIPs.has(row.ip) ? "#fca5a5" : "#e2e8f0" }}>{row.ip}</td>
-                    <td style={{ color: row.status === "Failed" ? "red" : "green" }}>{row.status}</td>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-3xl p-6">
+            <h2 className="text-xl font-semibold mb-4">Summary of Findings</h2>
+            <p className="text-slate-300">
+              {response?.summary || "No investigation has been run yet."}
+            </p>
+          </div>
+
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6">
+            <h2 className="text-xl font-semibold mb-4">Statistics</h2>
+            <div className="space-y-4">
+              <div className="bg-slate-800 rounded-2xl p-4">
+                <div className="text-slate-400 text-sm">Total Events</div>
+                <div className="text-3xl font-bold mt-1">
+                  {response?.statistics?.total_events ?? 0}
+                </div>
+              </div>
+
+              <div className="bg-slate-800 rounded-2xl p-4">
+                <div className="text-slate-400 text-sm">Unique IPs</div>
+                <div className="text-3xl font-bold mt-1">
+                  {response?.statistics?.unique_ips ?? 0}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6">
+          <h2 className="text-xl font-semibold mb-4">Recommended Actions</h2>
+          <ul className="space-y-3 text-slate-300 list-disc list-inside">
+            {(response?.recommended_actions?.length
+              ? response.recommended_actions
+              : ["Run an investigation to see recommended actions."]
+            ).map((action) => (
+              <li key={action}>{action}</li>
+            ))}
+          </ul>
+        </div>
+
+        <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 overflow-x-auto">
+          <h2 className="text-xl font-semibold mb-4">Raw Event Logs</h2>
+
+          <table className="w-full text-left border-collapse min-w-[900px]">
+            <thead>
+              <tr className="border-b border-slate-800 text-slate-400 text-sm">
+                {columns.length ? (
+                  columns.map((column) => (
+                    <th key={column} className="py-3 pr-4 whitespace-nowrap">
+                      {toLabel(column)}
+                    </th>
+                  ))
+                ) : (
+                  <>
+                    <th className="py-3 pr-4">Time</th>
+                    <th className="py-3 pr-4">Operation</th>
+                    <th className="py-3 pr-4">IP</th>
+                    <th className="py-3 pr-4">Status</th>
+                    <th className="py-3 pr-4">Account</th>
+                    <th className="py-3 pr-4">Region</th>
+                  </>
+                )}
+              </tr>
+            </thead>
+            <tbody>
+              {response?.details?.length ? (
+                response.details.map((detail, index) => (
+                  <tr key={index} className="border-b border-slate-800/60">
+                    {columns.map((column) => (
+                      <td key={column} className="py-3 pr-4 text-slate-300 align-top whitespace-nowrap">
+                        {detail[column] || "-"}
+                      </td>
+                    ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </Card>
-
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={columns.length || 6} className="py-10 text-center text-slate-500">
+                    No event data available yet.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
-
       </div>
-
-    </div>
-  )
-}
-
-function Card({ title, children }: any) {
-  return (
-    <div style={{
-      background: "#111827",
-      padding: "20px",
-      borderRadius: "10px",
-      marginBottom: "15px"
-    }}>
-      <h3>{title}</h3>
-      {children}
     </div>
   )
 }
