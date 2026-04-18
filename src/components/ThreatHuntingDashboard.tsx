@@ -83,6 +83,11 @@ export default function ThreatHuntingDashboard() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const [response, setResponse] = useState<InvestigationResponse | null>(null)
+  const [visibleCount, setVisibleCount] = useState(10)
+
+  const visibleDetails = useMemo(() => {
+    return response?.details?.slice(0, visibleCount) || []
+  }, [response, visibleCount])
 
   const columns = useMemo(() => {
     if (!response?.details?.length) return []
@@ -117,6 +122,7 @@ export default function ThreatHuntingDashboard() {
       }
 
       setResponse(data)
+      setVisibleCount(10)
     } catch (err) {
       const message = err instanceof Error ? err.message : "Unknown error occurred."
       setError(message)
@@ -129,6 +135,7 @@ export default function ThreatHuntingDashboard() {
   return (
     <div className="min-h-screen bg-slate-950 text-white p-6">
       <div className="max-w-7xl mx-auto space-y-6">
+
         <div>
           <h1 className="text-4xl font-bold">AI Threat Hunting Dashboard</h1>
           <p className="text-slate-400 mt-2">
@@ -185,8 +192,7 @@ export default function ThreatHuntingDashboard() {
         </div>
 
         <div className="flex items-center justify-between gap-4">
-          <div className="text-sm text-slate-500 break-all">
-          </div>
+          <div className="text-sm text-slate-500 break-all"></div>
 
           <button
             onClick={runInvestigation}
@@ -274,9 +280,10 @@ export default function ThreatHuntingDashboard() {
                 )}
               </tr>
             </thead>
+
             <tbody>
               {response?.details?.length ? (
-                response.details.map((detail, index) => (
+                visibleDetails.map((detail, index) => (
                   <tr key={index} className="border-b border-slate-800/60">
                     {columns.map((column) => (
                       <td key={column} className="py-3 pr-4 text-slate-300 align-top whitespace-nowrap">
@@ -300,7 +307,28 @@ export default function ThreatHuntingDashboard() {
               )}
             </tbody>
           </table>
+
+          {response?.details?.length > 10 && (
+            <div className="mt-6 flex justify-center">
+              {visibleCount < response.details.length ? (
+                <button
+                  onClick={() => setVisibleCount((count) => count + 10)}
+                  className="px-5 py-2.5 rounded-2xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-sm font-medium text-slate-200 transition"
+                >
+                  Show More
+                </button>
+              ) : (
+                <button
+                  onClick={() => setVisibleCount(10)}
+                  className="px-5 py-2.5 rounded-2xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-sm font-medium text-slate-200 transition"
+                >
+                  Show Less
+                </button>
+              )}
+            </div>
+          )}
         </div>
+
       </div>
     </div>
   )
