@@ -61,6 +61,20 @@ function toLabel(key: string) {
   return normalized.charAt(0).toUpperCase() + normalized.slice(1)
 }
 
+function getStatusBadgeClass(value?: string) {
+  const normalized = (value || "").toLowerCase()
+
+  if (["success", "succeeded", "passed"].includes(normalized)) {
+    return "bg-emerald-500/15 text-emerald-300 border border-emerald-500/30"
+  }
+
+  if (["failed", "failure", "error", "denied", "cancelled"].includes(normalized)) {
+    return "bg-rose-500/15 text-rose-300 border border-rose-500/30"
+  }
+
+  return "bg-slate-700/40 text-slate-300 border border-slate-600"
+}
+
 export default function ThreatHuntingDashboard() {
   const [investigationType, setInvestigationType] = useState("recent_cloudtrail_events")
   const [days, setDays] = useState("7")
@@ -177,9 +191,16 @@ export default function ThreatHuntingDashboard() {
           <button
             onClick={runInvestigation}
             disabled={loading}
-            className="px-6 py-3 rounded-2xl bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed font-semibold shadow-lg shadow-blue-900/30 transition"
+            className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed font-semibold shadow-lg shadow-blue-900/30 transition"
           >
-            {loading ? "Running..." : "Run Investigation"}
+            {loading ? (
+              <>
+                <span className="h-4 w-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+                Running Investigation...
+              </>
+            ) : (
+              "Run Investigation"
+            )}
           </button>
         </div>
 
@@ -259,7 +280,13 @@ export default function ThreatHuntingDashboard() {
                   <tr key={index} className="border-b border-slate-800/60">
                     {columns.map((column) => (
                       <td key={column} className="py-3 pr-4 text-slate-300 align-top whitespace-nowrap">
-                        {detail[column] || "N/A"}
+                        {column === "status" ? (
+                          <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${getStatusBadgeClass(detail[column])}`}>
+                            {detail[column] || "N/A"}
+                          </span>
+                        ) : (
+                          detail[column] || "N/A"
+                        )}
                       </td>
                     ))}
                   </tr>
