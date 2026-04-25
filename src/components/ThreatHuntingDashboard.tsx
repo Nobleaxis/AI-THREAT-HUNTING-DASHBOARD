@@ -153,9 +153,9 @@ export default function ThreatHuntingDashboard() {
 
         <div className="dashboard-header">
           <div>
-            <h1 className="text-4xl font-bold">Nobleaxis AI Threat Hunting Dashboard</h1>
+            <h1 className="text-4xl font-bold">Nobleaxis ThreatLens</h1>
             <p className="dashboard-muted mt-2">
-              Investigate AWS activity through your threat hunting API.
+              AI-powered investigation of AWS security events
             </p>
           </div>
           <div className="dashboard-header-actions">

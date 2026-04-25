@@ -31,7 +31,7 @@ export default function App() {
   if (!auth.isAuthenticated) {
     return (
       <div className="min-h-screen bg-slate-950 text-white flex flex-col items-center justify-center gap-4">
-        <h1 className="text-3xl font-bold">Nobleaxis AI Threat Hunting Dashboard</h1>
+        <h1 className="text-3xl font-bold">Nobleaxis ThreatLens</h1>
         <p className="text-slate-400">
           {wasSignedOut ? "Sign out successful." : "Sign in to continue."}
         </p>
