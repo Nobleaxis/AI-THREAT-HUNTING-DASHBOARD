@@ -2,9 +2,219 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --bg-color: #020617;
+  --card-color: #0f172a;
+  --surface-color: #1e293b;
+  --text-color: #f8fafc;
+  --muted-text-color: #cbd5e1;
+  --accent-color: #2563eb;
+  --accent-hover-color: #3b82f6;
+  --border-color: #1e293b;
+  --danger-bg-color: rgba(127, 29, 29, 0.5);
+  --danger-text-color: #fecaca;
+  --danger-border-color: #991b1b;
+}
+
 html,
 body,
 #root {
   height: 100%;
   margin: 0;
+}
+
+body {
+  background: var(--bg-color);
+  color: var(--text-color);
+}
+
+body,
+button,
+input,
+select,
+textarea,
+.dashboard-shell,
+.dashboard-card,
+.dashboard-surface,
+.dashboard-field,
+.theme-switcher__button,
+.theme-switcher__menu,
+.theme-switcher__option {
+  transition:
+    background-color 0.3s ease,
+    border-color 0.3s ease,
+    box-shadow 0.3s ease,
+    color 0.3s ease;
+}
+
+.dashboard-shell {
+  background: var(--bg-color);
+  color: var(--text-color);
+}
+
+.dashboard-header {
+  align-items: flex-start;
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+}
+
+.dashboard-card {
+  background: var(--card-color);
+  border: 1px solid var(--border-color);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.18);
+}
+
+.dashboard-surface {
+  background: var(--surface-color);
+  border: 1px solid color-mix(in srgb, var(--border-color) 75%, transparent);
+}
+
+.dashboard-body-text {
+  color: var(--muted-text-color);
+}
+
+.dashboard-muted,
+.dashboard-label {
+  color: var(--muted-text-color);
+}
+
+.dashboard-field {
+  background: var(--surface-color);
+  border: 1px solid var(--border-color);
+  color: var(--text-color);
+  outline: none;
+}
+
+.dashboard-field:focus {
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-color) 22%, transparent);
+}
+
+.dashboard-primary-button {
+  background: var(--accent-color);
+  color: #ffffff;
+  box-shadow: 0 18px 35px color-mix(in srgb, var(--accent-color) 28%, transparent);
+}
+
+.dashboard-primary-button:hover {
+  background: var(--accent-hover-color);
+}
+
+.dashboard-secondary-button {
+  background: var(--surface-color);
+  border: 1px solid var(--border-color);
+  color: var(--text-color);
+}
+
+.dashboard-secondary-button:hover {
+  border-color: var(--accent-color);
+  color: var(--accent-hover-color);
+}
+
+.dashboard-error {
+  background: var(--danger-bg-color);
+  border: 1px solid var(--danger-border-color);
+  color: var(--danger-text-color);
+}
+
+.dashboard-table-row {
+  border-bottom: 1px solid color-mix(in srgb, var(--border-color) 78%, transparent);
+}
+
+.theme-switcher {
+  position: relative;
+  z-index: 20;
+}
+
+.theme-switcher__button {
+  align-items: center;
+  background: var(--card-color);
+  border: 1px solid var(--border-color);
+  border-radius: 1rem;
+  color: var(--text-color);
+  display: inline-flex;
+  font-weight: 700;
+  gap: 0.6rem;
+  min-width: 10.5rem;
+  padding: 0.75rem 0.95rem;
+}
+
+.theme-switcher__button:hover,
+.theme-switcher__button[aria-expanded="true"] {
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-color) 18%, transparent);
+}
+
+.theme-switcher__swatch {
+  background: var(--accent-color);
+  border-radius: 999px;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-color) 20%, transparent);
+  height: 0.85rem;
+  width: 0.85rem;
+}
+
+.theme-switcher__chevron {
+  color: var(--muted-text-color);
+  font-size: 0.75rem;
+  margin-left: auto;
+}
+
+.theme-switcher__menu {
+  background: var(--card-color);
+  border: 1px solid var(--border-color);
+  border-radius: 1rem;
+  box-shadow: 0 22px 55px rgba(0, 0, 0, 0.34);
+  min-width: 15rem;
+  padding: 0.45rem;
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.6rem);
+}
+
+.theme-switcher__option {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-radius: 0.75rem;
+  color: var(--text-color);
+  cursor: pointer;
+  display: flex;
+  gap: 0.65rem;
+  padding: 0.72rem 0.75rem;
+  text-align: left;
+  width: 100%;
+}
+
+.theme-switcher__option:hover,
+.theme-switcher__option[aria-checked="true"] {
+  background: var(--surface-color);
+}
+
+.theme-switcher__option-swatch {
+  border-radius: 999px;
+  height: 0.8rem;
+  width: 0.8rem;
+}
+
+.theme-switcher__check {
+  color: var(--muted-text-color);
+  font-size: 0.75rem;
+  margin-left: auto;
+}
+
+@media (max-width: 720px) {
+  .dashboard-header {
+    flex-direction: column;
+  }
+
+  .theme-switcher,
+  .theme-switcher__button {
+    width: 100%;
+  }
+
+  .theme-switcher__menu {
+    left: 0;
+    min-width: 100%;
+  }
 }
