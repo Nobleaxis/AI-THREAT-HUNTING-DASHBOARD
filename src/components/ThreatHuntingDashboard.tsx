@@ -1,5 +1,7 @@
 import { useMemo, useState } from "react"
 import ThemeSwitcher from "./ThemeSwitcher"
+import { useAuth } from "react-oidc-context"
+
 
 const INVESTIGATION_TYPES = [
   "recent_cloudtrail_events",
@@ -77,6 +79,7 @@ function getStatusBadgeClass(value?: string) {
 }
 
 export default function ThreatHuntingDashboard() {
+  const auth = useAuth()
   const [investigationType, setInvestigationType] = useState("recent_cloudtrail_events")
   const [days, setDays] = useState("7")
   const [ipAddress, setIpAddress] = useState("")
@@ -117,6 +120,7 @@ export default function ThreatHuntingDashboard() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${auth.user?.access_token}`,
         },
         body: JSON.stringify(payload),
       })
