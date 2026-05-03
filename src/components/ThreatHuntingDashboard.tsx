@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react"
-import ThemeSwitcher from "./ThemeSwitcher"
 import { useAuth } from "react-oidc-context"
+import ThemeSwitcher from "./ThemeSwitcher"
 
 const INVESTIGATION_TYPES = [
   "recent_cloudtrail_events",
@@ -35,6 +35,7 @@ type InvestigationDetail = Record<string, string>
 
 type InvestigationResponse = {
   status: "success" | "error"
+  prompt?: string
   investigation_type: string
   summary: string
   details: InvestigationDetail[]
@@ -80,6 +81,8 @@ function getStatusBadgeClass(value?: string) {
 
 export default function ThreatHuntingDashboard() {
   const auth = useAuth()
+  const [queryMode, setQueryMode] = useState<"natural" | "structured">("natural")
+  const [naturalLanguageQuery, setNaturalLanguageQuery] = useState("")
   const [investigationType, setInvestigationType] = useState("recent_cloudtrail_events")
   const [days, setDays] = useState("7")
   const [ipAddress, setIpAddress] = useState("")
@@ -108,13 +111,25 @@ export default function ThreatHuntingDashboard() {
     setError("")
 
     try {
-      const payload: Record<string, string> = {
-        investigation_type: investigationType,
-        days,
-      }
+      let payload: Record<string, string>
 
-      if (ipAddress.trim()) payload.ip_address = ipAddress.trim()
-      if (username.trim()) payload.username = username.trim()
+      if (queryMode === "natural") {
+        if (!naturalLanguageQuery.trim()) {
+          throw new Error("Enter a natural language query before running the investigation.")
+        }
+
+        payload = {
+          prompt: naturalLanguageQuery.trim(),
+        }
+      } else {
+        payload = {
+          investigation_type: investigationType,
+          days,
+        }
+
+        if (ipAddress.trim()) payload.ip_address = ipAddress.trim()
+        if (username.trim()) payload.username = username.trim()
+      }
 
       const res = await fetch(API_ENDPOINT, {
         method: "POST",
@@ -150,7 +165,6 @@ export default function ThreatHuntingDashboard() {
   return (
     <div className="dashboard-shell min-h-screen p-6">
       <div className="max-w-7xl mx-auto space-y-6">
-
         <div className="dashboard-header">
           <div>
             <h1 className="text-4xl font-bold">Nobleaxis ThreatLens</h1>
@@ -170,52 +184,112 @@ export default function ThreatHuntingDashboard() {
           </div>
         </div>
 
-        <div className="dashboard-card grid grid-cols-1 md:grid-cols-4 gap-4 p-6 rounded-3xl">
-          <div>
-            <label className="dashboard-label block text-sm mb-2">Investigation Type</label>
-            <select
-              value={investigationType}
-              onChange={(e) => setInvestigationType(e.target.value)}
-              className="dashboard-field w-full rounded-2xl px-4 py-3"
+        <div className="dashboard-card p-6 rounded-3xl space-y-5">
+          <div className="flex flex-wrap gap-3">
+            <button
+              type="button"
+              onClick={() => setQueryMode("natural")}
+              className={`px-4 py-2 rounded-2xl text-sm font-semibold transition ${
+                queryMode === "natural" ? "dashboard-primary-button" : "dashboard-secondary-button"
+              }`}
             >
-              {INVESTIGATION_TYPES.map((type) => (
-                <option key={type} value={type}>
-                  {toInvestigationLabel(type)}
-                </option>
-              ))}
-            </select>
+              Natural Language Query
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setQueryMode("structured")}
+              className={`px-4 py-2 rounded-2xl text-sm font-semibold transition ${
+                queryMode === "structured" ? "dashboard-primary-button" : "dashboard-secondary-button"
+              }`}
+            >
+              Structured Investigation
+            </button>
           </div>
 
-          <div>
-            <label className="dashboard-label block text-sm mb-2">Days</label>
-            <input
-              type="number"
-              min="1"
-              value={days}
-              onChange={(e) => setDays(e.target.value)}
-              className="dashboard-field w-full rounded-2xl px-4 py-3"
-            />
-          </div>
+          {queryMode === "natural" ? (
+            <div>
+              <label className="dashboard-label block text-sm mb-2">Type your query</label>
+              <textarea
+                value={naturalLanguageQuery}
+                onChange={(e) => setNaturalLanguageQuery(e.target.value)}
+                placeholder="Example: Show failed API calls from IP 45.85.145.66 in the last 7 days"
+                className="dashboard-field w-full min-h-28 rounded-2xl px-4 py-3"
+              />
 
-          <div>
-            <label className="dashboard-label block text-sm mb-2">IP Address</label>
-            <input
-              type="text"
-              value={ipAddress}
-              onChange={(e) => setIpAddress(e.target.value)}
-              className="dashboard-field w-full rounded-2xl px-4 py-3"
-            />
-          </div>
+              <div className="mt-3 text-sm space-y-1">
+                <p className="dashboard-muted">Try:</p>
 
-          <div>
-            <label className="dashboard-label block text-sm mb-2">Username</label>
-            <input
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              className="dashboard-field w-full rounded-2xl px-4 py-3"
-            />
-          </div>
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    "Show failed API calls in the last 24 hours",
+                    "Show EC2 instances created recently",
+                    "Show suspicious IAM activity",
+                  ].map((example) => (
+                    <button
+                      key={example}
+                      type="button"
+                      onClick={() => setNaturalLanguageQuery(example)}
+                      className="dashboard-secondary-button px-3 py-1.5 rounded-xl text-xs"
+                    >
+                      {example}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+
+
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div>
+                <label className="dashboard-label block text-sm mb-2">Investigation Type</label>
+                <select
+                  value={investigationType}
+                  onChange={(e) => setInvestigationType(e.target.value)}
+                  className="dashboard-field w-full rounded-2xl px-4 py-3"
+                >
+                  {INVESTIGATION_TYPES.map((type) => (
+                    <option key={type} value={type}>
+                      {toInvestigationLabel(type)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="dashboard-label block text-sm mb-2">Days</label>
+                <input
+                  type="number"
+                  min="1"
+                  value={days}
+                  onChange={(e) => setDays(e.target.value)}
+                  className="dashboard-field w-full rounded-2xl px-4 py-3"
+                />
+              </div>
+
+              <div>
+                <label className="dashboard-label block text-sm mb-2">IP Address</label>
+                <input
+                  type="text"
+                  value={ipAddress}
+                  onChange={(e) => setIpAddress(e.target.value)}
+                  className="dashboard-field w-full rounded-2xl px-4 py-3"
+                />
+              </div>
+
+              <div>
+                <label className="dashboard-label block text-sm mb-2">Username</label>
+                <input
+                  type="text"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  className="dashboard-field w-full rounded-2xl px-4 py-3"
+                />
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="flex items-center justify-between gap-4">
@@ -231,6 +305,8 @@ export default function ThreatHuntingDashboard() {
                 <span className="h-4 w-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
                 Running Investigation...
               </>
+            ) : queryMode === "natural" ? (
+              "Run Query"
             ) : (
               "Run Investigation"
             )}
@@ -246,6 +322,17 @@ export default function ThreatHuntingDashboard() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="dashboard-card lg:col-span-2 rounded-3xl p-6">
             <h2 className="text-xl font-semibold mb-4">Summary of Findings</h2>
+            {response?.prompt && (
+              <div className="mb-3 space-y-1">
+                <p className="dashboard-muted text-sm">
+                  Query: {response.prompt}
+                </p>
+
+                <p className="text-sm text-purple-300">
+                  Interpreted as: {toInvestigationLabel(response.investigation_type)}
+                </p>
+              </div>
+            )}
             <p className="dashboard-body-text">
               {response?.summary || "No investigation has been run yet."}
             </p>
@@ -360,7 +447,6 @@ export default function ThreatHuntingDashboard() {
             </div>
           )}
         </div>
-
       </div>
     </div>
   )
