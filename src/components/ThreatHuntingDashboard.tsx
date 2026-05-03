@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react"
 import { useAuth } from "react-oidc-context"
 import ThemeSwitcher from "./ThemeSwitcher"
+import ReactMarkdown from "react-markdown"
 
 const INVESTIGATION_TYPES = [
   "recent_cloudtrail_events",
@@ -34,6 +35,7 @@ function toInvestigationLabel(value: string) {
 type InvestigationDetail = Record<string, string>
 
 type InvestigationResponse = {
+  anomaly_analysis?: string
   status: "success" | "error"
   prompt?: string
   investigation_type: string
@@ -82,6 +84,30 @@ function getStatusBadgeClass(value?: string) {
   return "bg-slate-700/40 text-slate-300 border border-slate-600"
 }
 
+function getSeverityFromAnalysis(analysis?: string) {
+  if (!analysis) return null
+
+  const lower = analysis.toLowerCase()
+
+  if (lower.includes("severity: high")) return "High"
+  if (lower.includes("severity: medium")) return "Medium"
+  if (lower.includes("severity: low")) return "Low"
+
+  return null
+}
+
+function getSeverityBadgeClass(severity: string) {
+  if (severity === "High") {
+    return "bg-rose-500/15 text-rose-300 border border-rose-500/30"
+  }
+
+  if (severity === "Medium") {
+    return "bg-amber-500/15 text-amber-300 border border-amber-500/30"
+  }
+
+  return "bg-emerald-500/15 text-emerald-300 border border-emerald-500/30"
+}
+
 export default function ThreatHuntingDashboard() {
   const auth = useAuth()
   const [queryMode, setQueryMode] = useState<"natural" | "structured">("natural")
@@ -108,6 +134,12 @@ export default function ThreatHuntingDashboard() {
     if (!response?.details?.length) return []
     return Object.keys(response.details[0])
   }, [response])
+
+
+  const severity = getSeverityFromAnalysis(response?.anomaly_analysis)
+
+
+
 
   async function executeInvestigation(payload: Record<string, string>) {
     const res = await fetch(API_ENDPOINT, {
@@ -390,6 +422,25 @@ export default function ThreatHuntingDashboard() {
         </div>
 
         <div className="dashboard-card rounded-3xl p-6">
+          {response?.anomaly_analysis && (
+            <div className="dashboard-card rounded-3xl p-6">
+              <div className="flex items-center justify-between gap-4 mb-4">
+                <h2 className="text-xl font-semibold">AI Analysis</h2>
+
+                {severity && (
+                  <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${getSeverityBadgeClass(severity)}`}>
+                    {severity} Risk
+                  </span>
+                )}
+              </div>
+              <div className="dashboard-body-text prose prose-invert max-w-none">
+                <ReactMarkdown>
+                  {response.anomaly_analysis}
+                </ReactMarkdown>
+              </div>
+            </div>
+          )}
+
           <h2 className="text-xl font-semibold mb-4">Recommended Actions</h2>
           <ul className="dashboard-body-text space-y-3 list-disc list-inside">
             {(response?.recommended_actions?.length
