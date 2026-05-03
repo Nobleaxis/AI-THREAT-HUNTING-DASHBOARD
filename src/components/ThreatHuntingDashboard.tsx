@@ -323,7 +323,7 @@ export default function ThreatHuntingDashboard() {
           <div className="dashboard-card lg:col-span-2 rounded-3xl p-6">
             <h2 className="text-xl font-semibold mb-4">Summary of Findings</h2>
             {response?.prompt && (
-              <div className="mb-3 space-y-1">
+              <div className="mb-3 space-y-2">
                 <p className="dashboard-muted text-sm">
                   Query: {response.prompt}
                 </p>
@@ -331,6 +331,14 @@ export default function ThreatHuntingDashboard() {
                 <p className="text-sm text-purple-300">
                   Interpreted as: {toInvestigationLabel(response.investigation_type)}
                 </p>
+
+                <div className="flex flex-wrap gap-3 text-xs dashboard-muted">
+                  <span>Time Range: Last {days} day(s)</span>
+
+                  {ipAddress && <span>IP: {ipAddress}</span>}
+
+                  {username && <span>User: {username}</span>}
+                </div>
               </div>
             )}
             <p className="dashboard-body-text">
