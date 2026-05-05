@@ -409,6 +409,7 @@ export default function ThreatHuntingDashboard() {
             </p>
           </div>
 
+
           <div className="dashboard-card rounded-3xl p-6">
             <h2 className="text-xl font-semibold mb-4">Statistics</h2>
             <div className="space-y-4">
